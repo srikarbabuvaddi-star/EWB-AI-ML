@@ -6,31 +6,55 @@
 [![SQLite](https://img.shields.io/badge/SQLite-Persistent-003B57.svg?logo=sqlite&logoColor=white)](https://www.sqlite.org/)
 [![SQLAlchemy](https://img.shields.io/badge/SQLAlchemy-2.0+-D71F00.svg)](https://www.sqlalchemy.org/)
 [![Pydantic](https://img.shields.io/badge/Pydantic-v2-E92063.svg?logo=pydantic&logoColor=white)](https://docs.pydantic.dev/)
-[![Pytest](https://img.shields.io/badge/Tests-19%20Passed-brightgreen.svg?logo=pytest&logoColor=white)](https://pytest.org/)
+[![Pytest](https://img.shields.io/badge/Tests-22%20Passed-brightgreen.svg?logo=pytest&logoColor=white)](https://pytest.org/)
 
 ---
 
 ## 1. Project Overview
 
-The **Students Database CRUD Application** is a production-ready, high-performance academic administration platform designed to manage student records with data integrity, persistent storage, and strict validation. Built using **Python**, **FastAPI**, **SQLAlchemy ORM**, **Pydantic v2**, and **SQLite**, the application delivers both a robust RESTful API and an administrative web dashboard.
+The **Students Database CRUD Application** is a production-grade, high-performance academic administration platform designed to manage student records with strict data integrity, persistent relational storage, and comprehensive input validation. Built using **Python**, **FastAPI**, **SQLAlchemy ORM**, **Pydantic v2**, and **SQLite**, the application delivers both a robust RESTful API and a modern web dashboard.
 
-The application strictly enforces unique constraints (such as duplicate email prevention), input sanitization (handling whitespace, dates of birth, and formatted phone numbers), and structured error responses following standard HTTP status codes.
+The application strictly enforces unique constraints (duplicate email prevention), input sanitization (handling whitespace, dates of birth, and formatted phone numbers), and structured error responses following standard HTTP status codes.
 
 ---
 
-## 2. Objectives
+## 2. Problem Statement
+
+Educational institutions and training providers frequently face data management challenges with student registration:
+- **Data Redundancy & Collisions**: Inconsistent registration systems allow duplicate student profiles with identical emails.
+- **Data Corruption & Validation Errors**: Accepting malformed email addresses, future dates of birth, or blank names degrades data quality.
+- **Lack of Persistence in Prototypes**: Many prototype tools rely on temporary in-memory arrays or client-side storage, causing critical data loss upon server reboots.
+- **Poor API Ergonomics**: APIs that lack structured error reporting, filtering, and pagination make client integrations brittle.
+
+This project solves these issues by providing a centralized, SQLite-persisted, schema-validated CRUD system with a clean administrative dashboard.
+
+---
+
+## 3. Objectives
 
 - **Create**: Securely register new student profiles with schema and database-level validation.
 - **Read & List**: Fetch student records with substring search by name, filtering by course, and limit/offset pagination.
 - **Retrieve Profile**: Inspect individual student details by unique ID.
 - **Update (PUT & PATCH)**: Support both full-entity replacement (PUT) and granular field-level modification (PATCH).
-- **Delete**: Permanently remove student records with HTTP 204 No Content response.
+- **Delete**: Permanently remove student records with HTTP 204 No Content response after explicit confirmation.
 - **Data Persistence**: Ensure all records are safely stored in a persistent SQLite database across server restarts.
-- **Reliable Testing**: Provide 100% automated test coverage across health checks, CRUD operations, edge cases, and database persistence.
+- **Reliable Testing**: Provide 100% automated test coverage across health checks, CRUD operations, edge cases, and database persistence using isolated test databases.
 
 ---
 
-## 3. Technology Stack
+## 4. Features
+
+- **Full RESTful CRUD Suite**: Endpoints for creating, reading, listing, updating, and deleting student records.
+- **Unique Email Enforcement**: Database-level unique index and repository-level pre-checks preventing collisions (HTTP 409 Conflict).
+- **Strict Input Validation**: Rejection of empty names, whitespace, invalid email formats, pre-1900 dates, and future birth dates (HTTP 422).
+- **Flexible Searching & Filtering**: Search students by name (case-insensitive substring) and filter by academic program.
+- **Pagination with Total Reporting**: Limit and offset pagination with total matching count exposed in the `X-Total-Count` header.
+- **Web Administration Dashboard**: Modern, responsive UI with live KPI stats cards, student directory table, modal forms, and toast notifications.
+- **Zero Mock Data**: All displayed records and statistics are queried live from the SQLite database.
+
+---
+
+## 5. Technology Stack
 
 | Layer | Technology | Purpose |
 | :--- | :--- | :--- |
@@ -44,7 +68,7 @@ The application strictly enforces unique constraints (such as duplicate email pr
 
 ---
 
-## 4. Project Architecture
+## 6. System Architecture
 
 The codebase follows a modular layered architecture separating concerns between configuration, database connection, ORM models, Pydantic schemas, database repository logic, and API route controllers:
 
@@ -72,7 +96,8 @@ EWB AIML/
 ├── tests/
 │   ├── __init__.py           # Tests package marker
 │   ├── conftest.py           # Pytest fixtures, in-memory SQLite setup, TestClient
-│   └── test_students.py      # Automated test suite (19 test cases covering 11 requirements)
+│   ├── test_integration_live.py # End-to-end integration test suite
+│   └── test_students.py      # Core unit and domain test suite
 ├── .gitignore                # Comprehensive Git ignore rules (DBs, envs, cache)
 ├── requirements.txt          # Production and testing runtime dependencies
 └── README.md                 # Project documentation and developer guide
@@ -93,68 +118,67 @@ graph LR
 
 ---
 
-## 5. How CRUD Operations Interact with SQLite
+## 7. Database Design & ORM Modeling
 
-Understanding how Python and SQLAlchemy interact with the SQLite database file:
+The entity model is mapped to the `students` table in the SQLite database:
+
+| Field | Type | Constraints | Description |
+| :--- | :--- | :--- | :--- |
+| `id` | Integer | Primary Key, Autoincrement, Index | Unique student identifier |
+| `name` | String(100) | Not Null, Index | Full name (min 2 chars, whitespace-trimmed) |
+| `date_of_birth`| Date | Not Null | Date of birth (1900 <= DOB <= today) |
+| `email` | String(255) | Not Null, Unique, Index | Case-insensitive normalized email address |
+| `phone` | String(25) | Nullable | Contact number (7–25 digits/symbols) |
+| `course` | String(100) | Nullable, Index | Academic program/major |
+| `address` | Text | Nullable | Residential address |
+| `enrollment_date`| Date | Nullable | Date of enrollment |
+| `created_at` | DateTime | Not Null, Server Default Now | Audit creation timestamp |
+| `updated_at` | DateTime | Not Null, Auto-updating Now | Audit update timestamp |
+
+---
+
+## 8. CRUD Workflow Interaction with SQLite
 
 1. **Initialization (`init_db`)**:
    - On server startup, FastAPI invokes `lifespan(app)`.
    - `Base.metadata.create_all(bind=engine)` issues `CREATE TABLE IF NOT EXISTS students (...)` to SQLite.
-   - If `students.db` does not exist, SQLite automatically creates the database file. If it already exists, existing student records remain untouched.
+   - If `students.db` exists, existing records remain untouched.
 
 2. **Session Lifecycle (`get_db`)**:
-   - FastAPI dependency injection yields a distinct `SessionLocal` instance for every HTTP request.
-   - In SQLite, multi-threading requires `connect_args={"check_same_thread": False}`.
-   - When the request completes, the `finally:` block executes `db.close()`, returning the connection safely to the pool and preventing connection leaks.
+   - FastAPI dependency injection yields an isolated `SessionLocal` instance per HTTP request.
+   - For thread safety in SQLite, the engine uses `connect_args={"check_same_thread": False}`.
+   - When the request completes, the `finally:` block executes `db.close()`, cleanly returning the connection to the pool.
 
 3. **Create (`POST /students`)**:
-   - Pydantic validates input types, trims whitespace from names, lowercases email, and rejects future birth dates.
-   - The CRUD layer checks for pre-existing email records.
-   - The ORM translates the object into an SQL statement:
-     ```sql
-     INSERT INTO students (name, date_of_birth, email, phone, course, address, enrollment_date, created_at, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP);
-     ```
-   - On database commit, SQLite assigns an autoincrement integer `id` and stores the row on disk.
+   - Validates fields via Pydantic; checks email uniqueness.
+   - Inserts row using parameterized ORM SQL statements. On commit, SQLite assigns the autoincrement integer `id`.
 
 4. **Read & List (`GET /students`)**:
-   - Queries are constructed using SQLAlchemy ORM expressions:
-     ```python
-     query = db.query(Student)
-     if name:
-         query = query.filter(Student.name.ilike(f"%{name}%"))
-     if course:
-         query = query.filter(Student.course.ilike(f"%{course}%"))
-     students = query.order_by(Student.id.asc()).offset(offset).limit(limit).all()
-     ```
-   - Parameterized queries eliminate SQL injection vulnerabilities.
-   - The total matching count is computed and returned in the `X-Total-Count` response header.
+   - Constructs ORM queries filtered by `Student.name.ilike(...)` and `Student.course.ilike(...)`.
+   - Returns paginated slices using `.offset(offset).limit(limit).all()`.
 
 5. **Update (`PUT` & `PATCH` `/students/{id}`)**:
-   - For **PUT**: All editable fields are updated with new validated data.
-   - For **PATCH**: `student_in.model_dump(exclude_unset=True)` extracts only fields explicitly supplied in the request body.
-   - If the email is being changed, the system validates that the target email is not already taken by another student.
-   - `db.commit()` writes changes to disk; `db.refresh()` loads updated timestamps.
+   - **PUT**: Replaces all editable fields with validated payload.
+   - **PATCH**: Updates only provided fields using `student_in.model_dump(exclude_unset=True)`.
+   - Validates that email changes do not conflict with existing records.
 
 6. **Delete (`DELETE /students/{id}`)**:
-   - `db.delete(db_student)` marks the row for deletion.
-   - `db.commit()` commits the deletion in SQLite.
-   - FastAPI returns HTTP `204 No Content`.
+   - Deletes record via `db.delete(db_student)` and commits. Returns HTTP 204 No Content.
 
 ---
 
-## 6. Prerequisites
+## 9. Prerequisites
 
 - **Python**: Version `3.10`, `3.11`, or `3.12` installed.
-- **pip**: Python package manager.
+- **pip**: Python package installer.
 - **Git**: For version control.
 
 ---
 
-## 7. Installation and Setup
+## 10. Installation & Virtual Environment Setup
 
-### Step 1: Clone or Open the Repository
-```bash
+### Step 1: Open the Project Directory
+```powershell
 cd "C:\Users\hi\Desktop\EWB AIML"
 ```
 
@@ -186,58 +210,27 @@ pip install -r requirements.txt
 
 ---
 
-## 8. Database Configuration
+## 11. Execution Instructions
 
-The application uses an SQLite database file. By default, it creates and connects to:
-```
-sqlite:///./students.db
-```
-To customize the database location, you can set the `DATABASE_URL` environment variable or create a `.env` file in the project root:
-
-```env
-PROJECT_NAME="Students Database CRUD API"
-DATABASE_URL="sqlite:///./students.db"
-DEFAULT_PAGE_LIMIT=10
-MAX_PAGE_LIMIT=100
-```
-
----
-
-## 9. How to Start the Backend
-
-Start the Uvicorn ASGI server with automatic reload:
+Start the application with Uvicorn:
 
 ```bash
 uvicorn app.main:app --host 127.0.0.1 --port 8000 --reload
 ```
 
-Upon startup, the terminal will display:
-```
-INFO:     Started server process
-INFO:     Waiting for application startup.
-INFO:     Starting up Students Database CRUD API v1.0.0...
-INFO:     Initializing database schema...
-INFO:     Database schema initialized successfully.
-INFO:     Database initialized.
-INFO:     Application startup complete.
-INFO:     Uvicorn running on http://127.0.0.1:8000 (Press CTRL+C to quit)
-```
-
 ### Available URLs
-
-- **API Welcome**: [http://127.0.0.1:8000/](http://127.0.0.1:8000/)
-- **Health Check**: [http://127.0.0.1:8000/health](http://127.0.0.1:8000/health)
-- **Interactive Swagger UI**: [http://127.0.0.1:8000/docs](http://127.0.0.1:8000/docs)
+- **Web Dashboard**: [http://127.0.0.1:8000/dashboard](http://127.0.0.1:8000/dashboard) (or [http://127.0.0.1:8000/](http://127.0.0.1:8000/))
+- **Interactive Swagger Docs**: [http://127.0.0.1:8000/docs](http://127.0.0.1:8000/docs)
 - **ReDoc Documentation**: [http://127.0.0.1:8000/redoc](http://127.0.0.1:8000/redoc)
-- **Administration Dashboard**: [http://127.0.0.1:8000/dashboard](http://127.0.0.1:8000/dashboard)
+- **System Health Check**: [http://127.0.0.1:8000/health](http://127.0.0.1:8000/health)
 
 ---
 
-## 10. API Endpoint Reference
+## 12. API Endpoint Reference
 
 | Method | Endpoint | Status | Description |
 | :--- | :--- | :--- | :--- |
-| `GET` | `/` | 200 OK | API welcome response and navigation links |
+| `GET` | `/` | 200 / 307 | API welcome response (redirects browser to `/dashboard`) |
 | `GET` | `/health` | 200 OK | System and SQLite connectivity health check |
 | `POST` | `/students` | 201 Created | Register a new student record |
 | `GET` | `/students` | 200 OK | List students with search, filter, and pagination |
@@ -247,199 +240,15 @@ INFO:     Uvicorn running on http://127.0.0.1:8000 (Press CTRL+C to quit)
 | `DELETE`| `/students/{student_id}` | 204 No Content | Permanently delete student record |
 | `GET` | `/dashboard` | 200 OK | Web administration interface |
 
-### Standard HTTP Status Codes
-
-- `200 OK`: Request succeeded (GET, PUT, PATCH).
-- `201 Created`: Student record created successfully (POST).
-- `204 No Content`: Student deleted successfully (DELETE).
-- `404 Not Found`: Target student ID does not exist in the database.
-- `409 Conflict`: Duplicate email address collision.
-- `422 Unprocessable Entity`: Input validation failure (e.g., empty name, invalid date, malformed email).
-- `500 Internal Server Error`: Unexpected server or database failure (safe message returned, no stack traces leaked).
-
 ---
 
-## 11. Example Requests and Responses
+## 13. Automated Testing Instructions
 
-### 1. Create Student (`POST /students`)
+All tests run using Pytest against an isolated in-memory test database (`sqlite:///:memory:`) using SQLAlchemy's `StaticPool`. Tests never modify or delete the application database (`students.db`).
 
-**Request:**
-```http
-POST /students HTTP/1.1
-Host: 127.0.0.1:8000
-Content-Type: application/json
-
-{
-  "name": "Marcus Vance",
-  "date_of_birth": "2002-04-12",
-  "email": "marcus.vance@example.edu",
-  "phone": "+1 555-0178",
-  "course": "Computer Science",
-  "address": "402 North Quad, Academic City",
-  "enrollment_date": "2024-09-01"
-}
-```
-
-**Response (HTTP 201 Created):**
-```json
-{
-  "id": 1,
-  "name": "Marcus Vance",
-  "date_of_birth": "2002-04-12",
-  "email": "marcus.vance@example.edu",
-  "phone": "+1 555-0178",
-  "course": "Computer Science",
-  "address": "402 North Quad, Academic City",
-  "enrollment_date": "2024-09-01",
-  "created_at": "2026-10-25T06:15:00.000000Z",
-  "updated_at": "2026-10-25T06:15:00.000000Z"
-}
-```
-
----
-
-### 2. List & Filter Students (`GET /students?course=Computer%20Science&limit=10&offset=0`)
-
-**Request:**
-```http
-GET /students?course=Computer%20Science&limit=10&offset=0 HTTP/1.1
-Host: 127.0.0.1:8000
-```
-
-**Response (HTTP 200 OK):**
-```http
-HTTP/1.1 200 OK
-Content-Type: application/json
-X-Total-Count: 1
-
-[
-  {
-    "id": 1,
-    "name": "Marcus Vance",
-    "date_of_birth": "2002-04-12",
-    "email": "marcus.vance@example.edu",
-    "phone": "+1 555-0178",
-    "course": "Computer Science",
-    "address": "402 North Quad, Academic City",
-    "enrollment_date": "2024-09-01",
-    "created_at": "2026-10-25T06:15:00.000000Z",
-    "updated_at": "2026-10-25T06:15:00.000000Z"
-  }
-]
-```
-
----
-
-### 3. Partial Update (`PATCH /students/1`)
-
-**Request:**
-```http
-PATCH /students/1 HTTP/1.1
-Host: 127.0.0.1:8000
-Content-Type: application/json
-
-{
-  "phone": "+1 555-9988",
-  "course": "Artificial Intelligence"
-}
-```
-
-**Response (HTTP 200 OK):**
-```json
-{
-  "id": 1,
-  "name": "Marcus Vance",
-  "date_of_birth": "2002-04-12",
-  "email": "marcus.vance@example.edu",
-  "phone": "+1 555-9988",
-  "course": "Artificial Intelligence",
-  "address": "402 North Quad, Academic City",
-  "enrollment_date": "2024-09-01",
-  "created_at": "2026-10-25T06:15:00.000000Z",
-  "updated_at": "2026-10-25T06:20:00.000000Z"
-}
-```
-
----
-
-### 4. Duplicate Email Error (`POST /students`)
-
-**Response (HTTP 409 Conflict):**
-```json
-{
-  "detail": "A student with email 'marcus.vance@example.edu' already exists."
-}
-```
-
----
-
-### 5. Input Validation Error (`POST /students` with future birth date)
-
-**Response (HTTP 422 Unprocessable Entity):**
-```json
-{
-  "detail": [
-    {
-      "type": "value_error",
-      "loc": ["body", "date_of_birth"],
-      "msg": "Value error, Date of birth cannot be in the future.",
-      "input": "2099-01-01"
-    }
-  ]
-}
-```
-
----
-
-### 6. Delete Student (`DELETE /students/1`)
-
-**Response (HTTP 204 No Content):**
-```http
-HTTP/1.1 204 No Content
-```
-
----
-
-## 12. Swagger UI Testing Instructions
-
-FastAPI provides an automatic, interactive API exploration interface:
-
-1. Start the server using `uvicorn app.main:app --reload`.
-2. Open your web browser and navigate to:
-   ```
-   http://127.0.0.1:8000/docs
-   ```
-3. **Test POST /students**:
-   - Expand `POST /students` -> click **"Try it out"**.
-   - Paste a sample JSON payload and click **"Execute"**.
-   - Verify that HTTP `201 Created` is returned with the generated ID.
-4. **Test Duplicate Email**:
-   - Click **"Execute"** again with the identical payload.
-   - Verify HTTP `409 Conflict` with the error message.
-5. **Test GET /students**:
-   - Expand `GET /students` -> click **"Try it out"**.
-   - Enter a search keyword (e.g. `marcus`) or filter by course.
-   - Click **"Execute"** and check the results and `X-Total-Count` header.
-6. **Test PUT & PATCH**:
-   - Test replacing all student details (PUT) or updating just the phone number (PATCH).
-7. **Test DELETE /students/{id}**:
-   - Enter the student ID and execute. Verify `204 No Content`.
-   - Re-execute `GET /students/{id}` with the same ID to verify `404 Not Found`.
-
----
-
-## 13. How to Run Automated Tests
-
-The project includes 19 comprehensive pytest tests covering all 11 required assignment criteria. Tests use an isolated in-memory SQLite database (`sqlite:///:memory:`) so production and development data are never touched or modified.
-
-### Run All Tests:
+### Execute All Tests:
 ```bash
 pytest -v
-```
-
-### Run Tests with Summary & Coverage:
-```bash
-pytest -v --tb=short
 ```
 
 ### Verified Test Results Evidence:
@@ -448,85 +257,69 @@ pytest -v --tb=short
 platform win32 -- Python 3.12.0, pytest-9.1.1, pluggy-1.6.0
 rootdir: C:\Users\hi\Desktop\EWB AIML
 plugins: anyio-4.14.2, langsmith-0.11.0, asyncio-1.4.0
-collected 19 items
+collected 22 items
 
-tests/test_students.py::test_health_check PASSED                         [  5%]
-tests/test_students.py::test_welcome_endpoint PASSED                     [ 10%]
-tests/test_students.py::test_create_student_success PASSED               [ 15%]
-tests/test_students.py::test_list_students_with_search_filter_pagination PASSED [ 21%]
-tests/test_students.py::test_retrieve_student_by_id PASSED               [ 26%]
-tests/test_students.py::test_update_student_put PASSED                   [ 31%]
-tests/test_students.py::test_update_student_patch PASSED                 [ 36%]
-tests/test_students.py::test_delete_student PASSED                       [ 42%]
-tests/test_students.py::test_student_not_found PASSED                    [ 47%]
-tests/test_students.py::test_duplicate_email_rejection PASSED            [ 52%]
-tests/test_students.py::test_invalid_input_rejection[name--at least 2 characters] PASSED [ 57%]
-tests/test_students.py::test_invalid_input_rejection[name-   -Student name cannot be empty] PASSED [ 63%]
-tests/test_students.py::test_invalid_input_rejection[name-A-at least 2 characters] PASSED [ 68%]
-tests/test_students.py::test_invalid_input_rejection[email-not-a-valid-email-valid email address] PASSED [ 73%]
-tests/test_students.py::test_invalid_input_rejection[email-@missinguser.com-valid email address] PASSED [ 78%]
-tests/test_students.py::test_invalid_input_rejection[date_of_birth-2099-01-01-cannot be in the future] PASSED [ 84%]
-tests/test_students.py::test_invalid_input_rejection[date_of_birth-1890-05-10-cannot be prior to the year 1900] PASSED [ 89%]
-tests/test_students.py::test_invalid_input_rejection[phone-invalid-phone-abc!@#-Phone number must contain] PASSED [ 94%]
+tests/test_integration_live.py::test_frontend_delivery PASSED            [  4%]
+tests/test_integration_live.py::test_backend_health PASSED               [  9%]
+tests/test_integration_live.py::test_full_crud_workflow_isolated PASSED  [ 13%]
+tests/test_students.py::test_health_check PASSED                         [ 18%]
+tests/test_students.py::test_welcome_endpoint PASSED                     [ 22%]
+tests/test_students.py::test_create_student_success PASSED               [ 27%]
+tests/test_students.py::test_list_students_with_search_filter_pagination PASSED [ 31%]
+tests/test_students.py::test_retrieve_student_by_id PASSED               [ 36%]
+tests/test_students.py::test_update_student_put PASSED                   [ 40%]
+tests/test_students.py::test_update_student_patch PASSED                 [ 45%]
+tests/test_students.py::test_delete_student PASSED                       [ 50%]
+tests/test_students.py::test_student_not_found PASSED                    [ 54%]
+tests/test_students.py::test_duplicate_email_rejection PASSED            [ 59%]
+tests/test_students.py::test_invalid_input_rejection[name--at least 2 characters] PASSED [ 63%]
+tests/test_students.py::test_invalid_input_rejection[name-   -Student name cannot be empty] PASSED [ 68%]
+tests/test_students.py::test_invalid_input_rejection[name-A-at least 2 characters] PASSED [ 72%]
+tests/test_students.py::test_invalid_input_rejection[email-not-a-valid-email-valid email address] PASSED [ 77%]
+tests/test_students.py::test_invalid_input_rejection[email-@missinguser.com-valid email address] PASSED [ 81%]
+tests/test_students.py::test_invalid_input_rejection[date_of_birth-2099-01-01-cannot be in the future] PASSED [ 86%]
+tests/test_students.py::test_invalid_input_rejection[date_of_birth-1890-05-10-cannot be prior to the year 1900] PASSED [ 90%]
+tests/test_students.py::test_invalid_input_rejection[phone-invalid-phone-abc!@#-Phone number must contain] PASSED [ 95%]
 tests/test_students.py::test_database_persistence PASSED                 [100%]
 
-============================= 19 passed in 0.61s ==============================
+============================= 22 passed in 0.81s ==============================
 ```
 
 ---
 
 ## 14. GitHub Upload Instructions
 
-Follow these exact steps to push this project to your GitHub repository:
+Repository: [https://github.com/srikarbabuvaddi-star/EWB-AI-ML.git](https://github.com/srikarbabuvaddi-star/EWB-AI-ML.git)
 
-### Step 1: Initialize Git in the Project Root
-```bash
-git init
-```
+To push this project to your repository, run:
 
-### Step 2: Stage All Valid Files
-The `.gitignore` automatically excludes virtual environments (`.venv`), database files (`*.db`), and cache files (`__pycache__`).
-```bash
-git add .
-```
-
-### Step 3: Verify Staged Files
-```bash
-git status
-```
-Ensure no `.db` or `.venv` files are staged.
-
-### Step 4: Create the Initial Commit
-```bash
-git commit -m "feat: complete students database CRUD application for EWB internship"
-```
-
-### Step 5: Link to Your GitHub Repository
-1. Create a new repository on [GitHub](https://github.com/new) named `students-database-crud`.
-2. Connect your local repository and push:
 ```bash
 git branch -M main
-git remote add origin https://github.com/<YOUR_GITHUB_USERNAME>/students-database-crud.git
+git remote add origin https://github.com/srikarbabuvaddi-star/EWB-AI-ML.git
+git add .
+git commit -m "feat: complete Students Database CRUD application with backend, SQLite persistence, test suite, and dashboard"
 git push -u origin main
 ```
+
+*(If `origin` already exists, update it with `git remote set-url origin https://github.com/srikarbabuvaddi-star/EWB-AI-ML.git` before pushing).*
 
 ---
 
 ## 15. Limitations
 
-- **Single SQLite File Concurrency**: SQLite is an embedded database that locks during write operations; for enterprise deployments with thousands of concurrent write transactions, PostgreSQL or MySQL is recommended.
-- **Unauthenticated API**: As specified by the assignment requirements, authentication (e.g. OAuth2 JWT) is not included to prioritize core CRUD reliability.
-- **Client-Side Asset Delivery**: The frontend dashboard is bundled and served directly via FastAPI static file mounting; large production systems typically deploy frontend assets via a CDN.
+- **File-Level Concurrency in SQLite**: SQLite uses database-level locks during write operations; for enterprise deployments handling thousands of concurrent writes, an external RDBMS like PostgreSQL is recommended.
+- **Unauthenticated Access**: As required by the assignment, authentication (JWT/OAuth2) is intentionally omitted to focus on core CRUD integrity and database persistence.
+- **Embedded Frontend**: Assets are served directly via FastAPI static mounting; high-scale applications typically deploy frontend bundles via a CDN.
 
 ---
 
-## 16. Future Improvements
+## 16. Future Enhancements
 
-- **Authentication & RBAC**: Add JWT token authentication with role-based access control (Admin, Registrar, Student).
-- **Bulk CSV Export / Import**: Enable administrators to bulk import or export student registries as CSV/Excel.
-- **Audit Logging**: Add an audit trail table to log who updated student records and when.
-- **Database Migrations with Alembic**: Integrate Alembic for forward and backward schema migrations.
-- **Docker Containerization**: Provide a `Dockerfile` and `docker-compose.yml` for zero-configuration container deployment.
+- **Role-Based Access Control (RBAC)**: JWT authentication with Admin, Registrar, and Student roles.
+- **CSV/Excel Export & Bulk Import**: Allow bulk registry updates.
+- **Audit History**: Historical audit logging of modifications.
+- **Alembic Database Migrations**: Declarative migration scripts for schema evolution.
+- **Docker Containerization**: `Dockerfile` and `docker-compose.yml` for zero-configuration container deployment.
 
 ---
 

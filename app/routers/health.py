@@ -2,7 +2,9 @@
 
 from datetime import datetime, timezone
 import logging
-from fastapi import APIRouter, Depends, status, HTTPException
+from typing import Any
+from fastapi import APIRouter, Depends, status, HTTPException, Request
+from fastapi.responses import RedirectResponse
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
@@ -21,8 +23,15 @@ router = APIRouter(tags=["System"])
     summary="API Welcome Information",
     description="Provides application metadata, version, and navigation links to documentation and the dashboard.",
 )
-def welcome_endpoint() -> WelcomeResponse:
-    """Return an introductory welcome message for the Students Database CRUD API."""
+def welcome_endpoint(request: Request) -> Any:
+    """Return an introductory welcome message for the Students Database CRUD API.
+
+    Redirects interactive browser navigations (Accept: text/html) to /dashboard.
+    """
+    accept = request.headers.get("accept", "")
+    if accept.startswith("text/html"):
+        return RedirectResponse(url="/dashboard", status_code=status.HTTP_307_TEMPORARY_REDIRECT)
+
     return WelcomeResponse(
         message="Welcome to the Students Database CRUD API (EWB Edu Tech Pvt. Ltd. Internship Assignment)",
         version=settings.VERSION,
