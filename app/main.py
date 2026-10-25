@@ -21,14 +21,21 @@ logger = logging.getLogger("students_api")
 
 BASE_DIR = Path(__file__).resolve().parent
 STATIC_DIR = BASE_DIR / "static"
+if not STATIC_DIR.exists():
+    alt_static = Path(__file__).resolve().parent.parent / "app" / "static"
+    if alt_static.exists():
+        STATIC_DIR = alt_static
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Lifecycle manager to initialize database schema on startup without wiping records."""
     logger.info("Starting up %s v%s...", settings.PROJECT_NAME, settings.VERSION)
-    init_db()
-    logger.info("Database initialized.")
+    try:
+        init_db()
+        logger.info("Database initialized.")
+    except Exception as exc:
+        logger.warning("Database schema initialization deferred: %s", exc)
     yield
     logger.info("Shutting down %s...", settings.PROJECT_NAME)
 
@@ -82,9 +89,20 @@ if STATIC_DIR.exists():
 async def serve_dashboard():
     """Serve the single-page HTML administrative dashboard."""
     index_file = STATIC_DIR / "index.html"
-    if not index_file.exists():
-        return JSONResponse(
-            status_code=status.HTTP_404_NOT_FOUND,
-            content={"detail": "Dashboard interface files not found."},
-        )
-    return FileResponse(str(index_file))
+    if index_file.exists():
+        return FileResponse(str(index_file), media_type="text/html")
+
+    # Fallback search for serverless packaging environments
+    candidates = [
+        Path("app/static/index.html"),
+        Path("/var/task/app/static/index.html"),
+        Path(__file__).resolve().parent.parent / "app" / "static" / "index.html",
+    ]
+    for candidate in candidates:
+        if candidate.exists():
+            return FileResponse(str(candidate), media_type="text/html")
+
+    return JSONResponse(
+        status_code=status.HTTP_404_NOT_FOUND,
+        content={"detail": "Dashboard interface files not found."},
+    )
