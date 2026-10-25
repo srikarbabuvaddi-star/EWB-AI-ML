@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Students Database CRUD Application - Academic Administration Dashboard">
+    <title>Students Database Management | EWB Edu Tech</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+
+    <!-- App Header -->
+    <header class="app-header">
+        <div class="header-container">
+            <div class="brand-wrapper">
+                <div class="brand-icon">
+                    <!-- Graduation Cap Icon -->
+                    <svg width="24" height="24" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 14l9-5-9-5-9 5 9 5zm0 0l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-5.824-2.998 12.078 12.078 0 01.665-6.479L12 14zm-4 6v-7.5"/>
+                    </svg>
+                </div>
+                <div class="brand-text">
+                    <h1>Students Database Administration</h1>
+                    <p>EWB Edu Tech Pvt. Ltd. • Internship Assignment</p>
+                </div>
+            </div>
+
+            <div class="header-actions">
+                <div id="healthStatusBadge" class="status-badge">
+                    <span class="status-dot"></span> Checking DB...
+                </div>
+                <a href="/docs" target="_blank" class="btn btn-secondary" title="Open Swagger Documentation">
+                    <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"/>
+                    </svg>
+                    Swagger Docs
+                </a>
+                <button type="button" class="btn btn-primary" onclick="openAddModal()">
+                    <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                    </svg>
+                    Add Student
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="main-container">
+
+        <!-- KPI Stats Cards -->
+        <section class="stats-grid" aria-label="Key Performance Indicators">
+            <div class="stat-card">
+                <div class="stat-icon blue">
+                    <svg width="24" height="24" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/>
+                    </svg>
+                </div>
+                <div class="stat-details">
+                    <h3>Total Students</h3>
+                    <div id="totalStudentsCount" class="stat-value">0</div>
+                </div>
+            </div>
+
+            <div class="stat-card">
+                <div class="stat-icon purple">
+                    <svg width="24" height="24" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/>
+                    </svg>
+                </div>
+                <div class="stat-details">
+                    <h3>Active Courses</h3>
+                    <div id="activeCoursesCount" class="stat-value">0</div>
+                </div>
+            </div>
+
+            <div class="stat-card">
+                <div class="stat-icon amber">
+                    <svg width="24" height="24" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                    </svg>
+                </div>
+                <div class="stat-details">
+                    <h3>Enrolled This Year</h3>
+                    <div id="currentYearCount" class="stat-value">0</div>
+                </div>
+            </div>
+
+            <div class="stat-card">
+                <div class="stat-icon green">
+                    <svg width="24" height="24" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/>
+                    </svg>
+                </div>
+                <div class="stat-details">
+                    <h3>System Storage</h3>
+                    <div class="stat-value" style="font-size: 1.15rem; color: #166534;">SQLite Persistent</div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Records Management Table Card -->
+        <section class="content-card">
+            <!-- Filter & Search Controls -->
+            <div class="control-bar">
+                <div class="search-filter-group">
+                    <div class="input-with-icon">
+                        <span class="input-icon">
+                            <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+                            </svg>
+                        </span>
+                        <input type="text" id="searchInput" class="form-input" placeholder="Search student by name...">
+                    </div>
+
+                    <div style="min-width: 180px;">
+                        <select id="courseFilter" class="form-select">
+                            <option value="">All Programs / Courses</option>
+                            <option value="Computer Science">Computer Science</option>
+                            <option value="Data Science">Data Science</option>
+                            <option value="Artificial Intelligence">Artificial Intelligence</option>
+                            <option value="Information Technology">Information Technology</option>
+                            <option value="Mechanical Engineering">Mechanical Engineering</option>
+                            <option value="Electrical Engineering">Electrical Engineering</option>
+                            <option value="Business Administration">Business Administration</option>
+                        </select>
+                    </div>
+
+                    <button type="button" id="resetFiltersBtn" class="btn btn-secondary" title="Reset Filters">
+                        Clear
+                    </button>
+                </div>
+
+                <div class="view-actions">
+                    <div style="display: flex; align-items: center; gap: 0.5rem; font-size: 0.8125rem; color: var(--text-secondary);">
+                        <label for="pageSizeSelect">Rows:</label>
+                        <select id="pageSizeSelect" class="form-select" style="width: auto; padding: 0.4rem 0.6rem;">
+                            <option value="10" selected>10</option>
+                            <option value="25">25</option>
+                            <option value="50">50</option>
+                        </select>
+                    </div>
+
+                    <button type="button" id="refreshBtn" class="btn btn-secondary" title="Refresh Table Data">
+                        <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+                        </svg>
+                        Refresh
+                    </button>
+                </div>
+            </div>
+
+            <!-- Table View -->
+            <div class="table-responsive">
+                <table class="students-table">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Student Name</th>
+                            <th>Email Address</th>
+                            <th>Course</th>
+                            <th>Date of Birth</th>
+                            <th>Phone</th>
+                            <th>Enrolled</th>
+                            <th style="text-align: right; padding-right: 1.5rem;">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="studentsTableBody">
+                        <!-- Populated by JavaScript -->
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Loading Indicator -->
+            <div id="loadingIndicator" class="loading-indicator" style="display: none;">
+                <div class="spinner"></div>
+                <span>Loading student records from database...</span>
+            </div>
+
+            <!-- Empty State -->
+            <div id="emptyState" class="empty-state" style="display: none;">
+                <div class="empty-state-icon">
+                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"/>
+                    </svg>
+                </div>
+                <h3>No Students Found</h3>
+                <p>No student records match your current filter or database is currently empty.</p>
+                <button type="button" class="btn btn-primary" onclick="openAddModal()">
+                    + Add First Student
+                </button>
+            </div>
+
+            <!-- Pagination Bar -->
+            <div class="pagination-bar">
+                <div id="paginationInfo" class="pagination-info">Showing 0 of 0 students</div>
+                <div class="pagination-controls">
+                    <button type="button" id="prevPageBtn" class="btn btn-secondary" disabled>Previous</button>
+                    <button type="button" id="nextPageBtn" class="btn btn-secondary" disabled>Next</button>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- Add/Edit Student Modal -->
+    <div id="studentModal" class="modal-backdrop">
+        <div class="modal-dialog">
+            <div class="modal-header">
+                <h2 id="modalTitle">Add New Student</h2>
+                <button type="button" class="btn btn-secondary btn-icon" onclick="closeStudentModal()">✕</button>
+            </div>
+            <form id="studentForm">
+                <div class="modal-body">
+                    <div class="form-grid">
+                        <div class="form-group col-span-2">
+                            <label class="form-label" for="nameInput">Full Name <span class="required">*</span></label>
+                            <input type="text" id="nameInput" class="form-input" placeholder="e.g. Eleanor Vance" required minlength="2">
+                        </div>
+
+                        <div class="form-group col-span-2">
+                            <label class="form-label" for="emailInput">Email Address <span class="required">*</span></label>
+                            <input type="email" id="emailInput" class="form-input" placeholder="e.g. eleanor.vance@example.edu" required>
+                            <span class="form-hint">Must be unique and a valid email format.</span>
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label" for="dobInput">Date of Birth <span class="required">*</span></label>
+                            <input type="date" id="dobInput" class="form-input" required>
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label" for="enrollmentDateInput">Enrollment Date</label>
+                            <input type="date" id="enrollmentDateInput" class="form-input">
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label" for="courseInput">Course / Program</label>
+                            <input type="text" id="courseInput" class="form-input" placeholder="e.g. Computer Science" list="coursesList">
+                            <datalist id="coursesList">
+                                <option value="Computer Science">
+                                <option value="Data Science">
+                                <option value="Artificial Intelligence">
+                                <option value="Information Technology">
+                                <option value="Mechanical Engineering">
+                                <option value="Electrical Engineering">
+                                <option value="Business Administration">
+                            </datalist>
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label" for="phoneInput">Phone Number</label>
+                            <input type="text" id="phoneInput" class="form-input" placeholder="e.g. +1 555-0199">
+                        </div>
+
+                        <div class="form-group col-span-2">
+                            <label class="form-label" for="addressInput">Residential Address</label>
+                            <textarea id="addressInput" class="form-textarea" rows="2" placeholder="e.g. 104 Campus Drive, Suite 302"></textarea>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" onclick="closeStudentModal()">Cancel</button>
+                    <button type="submit" id="saveStudentBtn" class="btn btn-primary">Save Student</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- View Student Details Modal -->
+    <div id="detailsModal" class="modal-backdrop">
+        <div class="modal-dialog">
+            <div class="modal-header">
+                <h2>Student Record Details</h2>
+                <button type="button" class="btn btn-secondary btn-icon" onclick="closeDetailsModal()">✕</button>
+            </div>
+            <div class="modal-body" id="detailsContent">
+                <!-- Injected via JavaScript -->
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" onclick="closeDetailsModal()">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Delete Confirmation Modal -->
+    <div id="deleteModal" class="modal-backdrop">
+        <div class="modal-dialog" style="max-width: 440px;">
+            <div class="modal-header">
+                <h2>Confirm Deletion</h2>
+                <button type="button" class="btn btn-secondary btn-icon" onclick="closeDeleteModal()">✕</button>
+            </div>
+            <div class="modal-body">
+                <p style="margin-bottom: 0.75rem;">Are you sure you want to permanently delete the student profile for <strong id="deleteTargetName"></strong> (ID #<span id="deleteTargetId"></span>)?</p>
+                <p style="font-size: 0.8125rem; color: #dc2626; background: #fee2e2; padding: 0.5rem 0.75rem; border-radius: 6px;">
+                    ⚠️ This action deletes the record from the SQLite database and cannot be undone.
+                </p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" onclick="closeDeleteModal()">Cancel</button>
+                <button type="button" id="confirmDeleteBtn" class="btn btn-danger">Delete Student</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Floating Toast Notifications -->
+    <div id="toastContainer" class="toast-container" aria-live="polite"></div>
+
+    <script src="/static/js/app.js"></script>
+</body>
+</html>
